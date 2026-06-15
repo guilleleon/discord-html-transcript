@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.FileUpload;
 import org.apache.commons.io.FileUtils;
 import org.json.JSONObject;
@@ -17,15 +18,14 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
+import java.awt.*;
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class DiscordHtmlTranscripts {
@@ -302,8 +302,16 @@ public class DiscordHtmlTranscripts {
 
         var referenceMessage = message.getReferencedMessage();
         User author = referenceMessage.getAuthor();
-        Member member = channel.getGuild().getMember(author);
-        var color = Formatter.toHex(Objects.requireNonNull(member.getColor()));
+        Color color = Optional.ofNullable(channel.getGuild().getMember(author))
+                .or(() -> {
+                    try {
+                        return Optional.ofNullable(channel.getGuild().retrieveMember(author).complete());
+                    } catch (Exception e) {
+                        return Optional.empty();
+                    }
+                })
+                .map(Member::getColor)
+                .orElse(Color.LIGHT_GRAY);
 
         //        System.out.println("REFERENCE MSG " + referenceMessage.getContentDisplay());
         reference.html("<img class=\"chatlog__reference-avatar\" src=\""
@@ -314,12 +322,12 @@ public class DiscordHtmlTranscripts {
                 " <span class=\"chatlog__reference-link\" onclick=\"scrollToMessage(event, '"
                 + referenceMessage.getId() + "')\">" +
                 "<em>" +
-                referenceMessage.getContentDisplay() != null
-                ? referenceMessage.getContentDisplay().length() > 42
+                (referenceMessage.getContentDisplay() != null
+                ? (referenceMessage.getContentDisplay().length() > 42
                 ? referenceMessage.getContentDisplay().substring(0, 42)
                 + "..."
-                : referenceMessage.getContentDisplay()
-                : "Click to see attachment" +
+                : referenceMessage.getContentDisplay())
+                : "Click to see attachment") +
                 "</em>" +
                 "</span>" +
                 "</div>");
@@ -420,11 +428,13 @@ public class DiscordHtmlTranscripts {
             Element authorName = document.createElement("span");
             authorName.addClass("chatlog__author-name");
 
-            if (author != null) {
-                authorName.attr("title", Objects.requireNonNull(author.getName()));
+            if (!author.isBot()) {
+                authorName.attr("title", Optional.of(author.getName()).orElse("Usuario"));
                 authorName.text(author.getName());
                 authorName.attr("data-user-id", author.getId());
-                authorAvatar.attr("src", Objects.requireNonNull(author.getAvatarUrl()));
+                authorAvatar.attr("src", Optional.ofNullable(author.getAvatarUrl())
+                        .orElse("https://cdn.discordapp.com/embed/avatars/3.png")
+                );
             } else {
                 // Handle the case when author is null (e.g., when the message is from a bot)
                 authorName.attr("title", "Bot");

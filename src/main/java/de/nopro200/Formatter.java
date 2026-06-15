@@ -19,7 +19,7 @@ public class Formatter {
     private final Pattern LINK = Pattern.compile("\\[([^\\[]+)\\](\\((www|http:|https:)+[^\\s]+[\\w]\\))");
     private final Pattern NEW_LINE = Pattern.compile("\\n");
 
-    public String formatBytes(long bytes) {
+    public static String formatBytes(long bytes) {
         int unit = 1024;
         if (bytes < unit)
             return bytes + " B";
@@ -28,7 +28,7 @@ public class Formatter {
         return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
     }
 
-    public String format(String originalText) {
+    public static String format(String originalText) {
         Matcher matcher = STRONG.matcher(originalText);
         String newText = originalText;
         while (matcher.find()) {
@@ -93,7 +93,7 @@ public class Formatter {
         return newText;
     }
 
-    public String toHex(Color color) {
+    public static String toHex(Color color) {
         String hex = Integer.toHexString(color.getRGB() & 0xffffff);
         while (hex.length() < 6) {
             hex = "0" + hex;
